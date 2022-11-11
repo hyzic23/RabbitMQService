@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Producer.Data;
 using Producer.Dtos;
+using Producer.IRepository;
 using Producer.Model;
 using RabbitMQService.Dtos;
 using RabbitMQService.Model;
@@ -18,21 +19,24 @@ namespace RabbitMQService.Controllers
         private readonly IOrderDbContext context;
         private readonly IMessageProducer messageProducer;
         private IValidator<UserDto> validator;
+        private readonly IUserRepository userRepository;
 
         public UsersController(IMessageProducer messageProducer,
                                 IOrderDbContext context,
-                                IValidator<UserDto> validator)
+                                IValidator<UserDto> validator,
+                                IUserRepository userRepository)
         {
             this.messageProducer = messageProducer;
             this.context = context;
             this.validator = validator;
+            this.userRepository = userRepository;
         }
 
 
         [HttpGet]
         public async Task<IActionResult> GetAllUsers()
-        {
-            var result = context.Users.ToList();
+        {           
+            var result = userRepository.GetAllUsers();
             messageProducer.SendMessage(result);
             return Ok(result);
         }
@@ -46,7 +50,7 @@ namespace RabbitMQService.Controllers
             {
                 result.Errors.ToList();
                 return Ok(result);              
-            }
+            }            
 
             User user = new()
             {
@@ -54,11 +58,9 @@ namespace RabbitMQService.Controllers
                 Password = userDto.Password
             };
 
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
-
-            messageProducer.SendMessage(user);
-            return Ok(new { id = user.Id});
+            var response = userRepository.AddUser(user);   
+            messageProducer.SendMessage(response);
+            return Ok(response);
         }
 
 

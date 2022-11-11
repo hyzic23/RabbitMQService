@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Producer.Data;
 using Producer.Dtos;
+using Producer.IRepository;
+using Producer.Repository;
 using Producer.Validator;
 using RabbitMQService.Dtos;
 using RabbitMQService.RabbitMQ;
@@ -14,6 +16,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<OrderDbContext>(item => item.UseSqlServer(builder.Configuration.GetConnectionString("OrderDbContext")));
 builder.Services.AddScoped<IOrderDbContext, OrderDbContext>();
 builder.Services.AddScoped<IMessageProducer, RabbitMQProducer>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 builder.Services.AddScoped<IValidator<OrderDto>, OrderValidator>();
 builder.Services.AddScoped<IValidator<UserDto>, UserValidator>();

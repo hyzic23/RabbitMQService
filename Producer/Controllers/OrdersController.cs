@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Producer.Data;
+using Producer.IRepository;
 using RabbitMQService.Dtos;
 using RabbitMQService.Model;
 using RabbitMQService.RabbitMQ;
@@ -16,21 +17,24 @@ namespace RabbitMQService.Controllers
         private readonly IOrderDbContext context;
         private readonly IMessageProducer messageProducer;
         private IValidator<OrderDto> validator;
+        private readonly IOrderRepository orderRepository;
 
         public OrdersController(IMessageProducer messageProducer,
                                 IOrderDbContext context,
-                                IValidator<OrderDto> validator)
+                                IValidator<OrderDto> validator,
+                                IOrderRepository orderRepository = null)
         {
             this.messageProducer = messageProducer;
             this.context = context;
             this.validator = validator;
+            this.orderRepository = orderRepository;
         }
 
 
         [HttpGet]
         public async Task<IActionResult> GetAllOrders()
         {
-            var result = context.Order.ToList();
+            var result = orderRepository.GetAllOrders();
             messageProducer.SendMessage(result);
             return Ok(result);
         }
@@ -52,11 +56,14 @@ namespace RabbitMQService.Controllers
                 Quantity = orderDto.Quantity
             };
 
-            context.Order.Add(order);
-            await context.SaveChangesAsync();
+            var response = orderRepository.AddOrder(order);
 
-            messageProducer.SendMessage(order);
-            return Ok(new { id = order.Id});
+            //context.Order.Add(order);
+            //await context.SaveChangesAsync();
+
+            messageProducer.SendMessage(response);
+            //return Ok(new { id = order.Id});
+            return Ok(response);
         }
 
 
