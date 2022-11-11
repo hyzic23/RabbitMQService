@@ -15,7 +15,7 @@ namespace Producer.Validator
             RuleFor(x => x.Password)
                 .NotEmpty().WithMessage("Password cannot be empty")
                 .Length(5, 15).WithMessage("Password length must be between 5 and 15")
-                .Must(x => ValidatorUtils.HasValidPassword(x));
+                .Must(ValidatorUtils.HasValidPassword);
         }
     }
 }
