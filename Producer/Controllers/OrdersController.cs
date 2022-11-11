@@ -1,12 +1,12 @@
 ﻿using FluentValidation;
 using FluentValidation.Results;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Producer.Data;
 using Producer.IRepository;
 using RabbitMQService.Dtos;
 using RabbitMQService.Model;
 using RabbitMQService.RabbitMQ;
+using AutoMapper;
 
 namespace RabbitMQService.Controllers
 {
@@ -18,16 +18,19 @@ namespace RabbitMQService.Controllers
         private readonly IMessageProducer messageProducer;
         private IValidator<OrderDto> validator;
         private readonly IOrderRepository orderRepository;
+        private readonly IMapper mapper;
 
         public OrdersController(IMessageProducer messageProducer,
                                 IOrderDbContext context,
                                 IValidator<OrderDto> validator,
-                                IOrderRepository orderRepository = null)
+                                IOrderRepository orderRepository,
+                                IMapper mapper)
         {
             this.messageProducer = messageProducer;
             this.context = context;
             this.validator = validator;
             this.orderRepository = orderRepository;
+            this.mapper = mapper;
         }
 
 
@@ -35,34 +38,27 @@ namespace RabbitMQService.Controllers
         public async Task<IActionResult> GetAllOrders()
         {
             var result = orderRepository.GetAllOrders();
+            var orders = mapper.Map<IEnumerable<Order>>(result);
+
             messageProducer.SendMessage(result);
-            return Ok(result);
+            return Ok(orders);
         }
 
         [HttpPost]
         public async Task<IActionResult> CreateOrder(OrderDto orderDto)
         {
+                
             ValidationResult result = await validator.ValidateAsync(orderDto);
             if (!result.IsValid)
             {
                 result.Errors.ToList();
-                return Ok(result);              
+                return Ok(result);
             }
 
-            Order order = new()
-            {
-                ProductName = orderDto.ProductName,
-                Price = orderDto.Price,
-                Quantity = orderDto.Quantity
-            };
+            var order = mapper.Map<Order>(orderDto);
+            var response = orderRepository.AddOrder(order);            
 
-            var response = orderRepository.AddOrder(order);
-
-            //context.Order.Add(order);
-            //await context.SaveChangesAsync();
-
-            messageProducer.SendMessage(response);
-            //return Ok(new { id = order.Id});
+            messageProducer.SendMessage(response);            
             return Ok(response);
         }
 

@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using AutoMapper;
+using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -20,16 +21,19 @@ namespace RabbitMQService.Controllers
         private readonly IMessageProducer messageProducer;
         private IValidator<UserDto> validator;
         private readonly IUserRepository userRepository;
+        private readonly IMapper mapper;
 
         public UsersController(IMessageProducer messageProducer,
                                 IOrderDbContext context,
                                 IValidator<UserDto> validator,
-                                IUserRepository userRepository)
+                                IUserRepository userRepository,
+                                IMapper mapper)
         {
             this.messageProducer = messageProducer;
             this.context = context;
             this.validator = validator;
             this.userRepository = userRepository;
+            this.mapper = mapper;
         }
 
 
@@ -37,6 +41,7 @@ namespace RabbitMQService.Controllers
         public async Task<IActionResult> GetAllUsers()
         {           
             var result = userRepository.GetAllUsers();
+            var orders = mapper.Map<IEnumerable<User>>(result);
             messageProducer.SendMessage(result);
             return Ok(result);
         }
@@ -50,14 +55,9 @@ namespace RabbitMQService.Controllers
             {
                 result.Errors.ToList();
                 return Ok(result);              
-            }            
+            }
 
-            User user = new()
-            {
-                Username = userDto.Username,
-                Password = userDto.Password
-            };
-
+            var user = mapper.Map<User>(userDto);           
             var response = userRepository.AddUser(user);   
             messageProducer.SendMessage(response);
             return Ok(response);
